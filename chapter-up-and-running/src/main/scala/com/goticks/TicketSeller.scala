@@ -12,6 +12,8 @@ object TicketSeller {
   case object GetEvent
   case object Cancel
 
+  case class Update(event: String, ticket: Int)
+
 }
 
 
@@ -32,6 +34,9 @@ class TicketSeller(event: String) extends Actor {
     case Cancel =>
       sender() ! Some(BoxOffice.Event(event, tickets.size))
       self ! PoisonPill
+    case Update(_: String, ticketNum: Int) =>
+      // ここで、ticket情報の更新をゴニョゴニョする
+      // sender() ! Ticket(ticketNum)
   }
 }
 

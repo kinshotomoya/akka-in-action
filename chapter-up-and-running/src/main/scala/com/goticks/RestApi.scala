@@ -11,6 +11,9 @@ import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server._
 
+
+// routingを設定している。
+// ここで、requestによって、どの
 class RestApi(system: ActorSystem, timeout: Timeout)
     extends RestRoutes {
   implicit val requestTimeout = timeout
@@ -61,6 +64,13 @@ trait RestRoutes extends BoxOfficeApi
           // DELETE /events/:event
           onSuccess(cancelEvent(event)) {
             _.fold(complete(NotFound))(e => complete(OK, e))
+          }
+        }
+        // ticketの枚数を変更する
+        put {
+          onSuccess(updateEvent(event)) {
+            // sender() でresponseが返ってくるので、型で、処理を分けている
+            case BoxOffice.EventUpdated(aaa) => complete(OK, aaa)
           }
         }
       }
@@ -114,5 +124,11 @@ trait BoxOfficeApi {
   def requestTickets(event: String, tickets: Int) =
     boxOffice.ask(GetTickets(event, tickets))
       .mapTo[TicketSeller.Tickets]
+
+
+  def updateEvent(event: String) =
+  // boxOffice actorに処理(message)を投げる
+    boxOffice.ask(UpdateEvent(event))
+      .mapTo[EventUpdated]
 }
 //

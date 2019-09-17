@@ -9,7 +9,7 @@ object BoxOffice {
   def props(implicit timeout: Timeout) = Props(new BoxOffice)
   def name = "boxOffice"
 
-
+  // 送信するmessageをcase classで持っておく
   case class CreateEvent(name: String, tickets: Int)
   case class GetEvent(name: String)
   case object GetEvents
@@ -19,9 +19,13 @@ object BoxOffice {
   case class Event(name: String, tickets: Int)
   case class Events(events: Vector[Event])
 
+  case class UpdateEvent(event: String)
+  case class EventUpdated(event: Event)
+
   sealed trait EventResponse
   case class EventCreated(event: Event) extends EventResponse
   case object EventExists extends EventResponse
+
 
 }
 
@@ -37,10 +41,17 @@ class BoxOffice(implicit timeout: Timeout) extends Actor {
     case CreateEvent(name, tickets) =>
       def create() = {
         val eventTickets = createTicketSeller(name)
+        // Actor[akka://default/user/boxOffice/arashi#1687850722]
+        // ticketSeller actorを作成
+        println(eventTickets)
         val newTickets = (1 to tickets).map { ticketId =>
           TicketSeller.Ticket(ticketId)
         }.toVector
+        println(newTickets)
+        // eventTickets(actor) !(send) TicketSeller.Add(newTickets) (message)
+        // case Add(newTickets) => tickets = tickets ++ newTickets ここに処理が行く
         eventTickets ! TicketSeller.Add(newTickets)
+        // receiveメソッドにmessageを送ってきた箇所に、responseを返している
         sender() ! EventCreated(Event(name, tickets))
       }
       context.child(name).fold(create())(_ => sender() ! EventExists)
@@ -78,6 +89,15 @@ class BoxOffice(implicit timeout: Timeout) extends Actor {
       def notFound() = sender() ! None
       def cancelEvent(child: ActorRef) = child forward TicketSeller.Cancel
       context.child(event).fold(notFound())(cancelEvent)
+
+    // messageがこの型ならば
+    case UpdateEvent(event) =>
+      println(event)
+      // ticketSeller actorを作成する
+      val eventTickets = createTicketSeller(event)
+      // ticketSeller actorに、Updateメッセージを送る
+      eventTickets ! TicketSeller.Update(event, 1)
+      sender() ! EventUpdated(Event(event, 1))
   }
 }
 
